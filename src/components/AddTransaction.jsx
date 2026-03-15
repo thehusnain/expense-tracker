@@ -13,8 +13,8 @@ import {
   Dimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { X, ChevronDown, Calendar, CreditCard, Tag, DollarSign, Check } from 'lucide-react-native';
-import { addTransaction } from '../database/db';
+import { X, ChevronDown, Calendar, CreditCard, Tag, DollarSign, Check, ArrowUpCircle, ArrowDownCircle } from 'lucide-react-native';
+import { addTransaction, getTransactionCount } from '../database/db';
 import { theme } from '../theme';
 import GlassCard from './GlassCard';
 
@@ -31,8 +31,11 @@ export default function AddTransaction({ userId, onClose }) {
   const [description, setDescription] = useState('');
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
 
+  const [showSuccessAnim, setShowSuccessAnim] = useState(false);
   const slideAnim = useRef(new Animated.Value(300)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const successSlideAnim = useRef(new Animated.Value(0)).current;
+  const successFadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.parallel([
@@ -64,13 +67,51 @@ export default function AddTransaction({ userId, onClose }) {
     ]).start(() => onClose());
   };
 
+  const triggerSuccessAnim = () => {
+    setShowSuccessAnim(true);
+    Animated.parallel([
+      Animated.timing(successSlideAnim, {
+        toValue: -100,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.sequence([
+        Animated.timing(successFadeAnim, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(successFadeAnim, {
+          toValue: 0,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+      ])
+    ]).start(() => handleClose());
+  };
+
   const handleSubmit = async () => {
     if (!amount || parseFloat(amount) <= 0) {
       Alert.alert('Error', 'Please enter a valid amount');
       return;
     }
 
+    if (parseFloat(amount) > 1000000000) {
+      Alert.alert('Limit Reached', 'Transaction amount cannot exceed 1 billion for security reasons.');
+      return;
+    }
+
     try {
+      const count = await getTransactionCount(userId);
+      if (count >= 30) {
+        Alert.alert(
+          'Limit Reached',
+          'Free users are limited to 30 transactions. Upgrade to Premium for unlimited tracking!',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
       const now = new Date();
       const date = now.toISOString().split('T')[0];
       const time = now.toTimeString().split(' ')[0];
@@ -78,13 +119,14 @@ export default function AddTransaction({ userId, onClose }) {
       await addTransaction(
         userId,
         parseFloat(amount),
-        category,
+        type === 'income' ? 'Income' : category,
         type,
         description,
         date,
         time
       );
-      handleClose();
+
+      triggerSuccessAnim();
     } catch (error) {
       Alert.alert('Error', 'Failed to save transaction');
     }
@@ -147,51 +189,60 @@ export default function AddTransaction({ userId, onClose }) {
 
             {/* Amount Input */}
             <GlassCard style={styles.amountCard}>
-              <Text style={styles.amountLabel}>Amount</Text>
+              <Text style={styles.amountLabel}>Total Amount</Text>
               <View style={styles.amountInputRow}>
-                <Text style={styles.currencySymbol}>$</Text>
+                <Text style={styles.currencySymbol}>Rs</Text>
                 <TextInput
-                  style={[styles.amountInput, { color: type === 'income' ? theme.colors.income : theme.colors.expense }]}
+                  style={[
+                    styles.amountInput,
+                    { color: type === 'income' ? theme.colors.income : theme.colors.expense }
+                  ]}
                   keyboardType="numeric"
-                  placeholder="0.00"
-                  placeholderTextColor="rgba(255,255,255,0.2)"
+                  placeholder="0"
+                  placeholderTextColor="rgba(255,255,255,0.1)"
+                  maxLength={10}
                   value={amount}
                   onChangeText={setAmount}
+                  adjustsFontSizeToFit
                 />
               </View>
             </GlassCard>
 
             {/* Category Selector */}
-            <View style={styles.sectionHeader}>
-              <Text style={styles.label}>Select Category</Text>
-            </View>
-            <View style={styles.categoryGrid}>
-              {CATEGORIES.map((cat) => (
-                <TouchableOpacity
-                  key={cat}
-                  style={[
-                    styles.categoryItem,
-                    category === cat && styles.categoryItemActive
-                  ]}
-                  onPress={() => setCategory(cat)}
-                >
-                  <Text style={[
-                    styles.categoryText,
-                    category === cat && styles.categoryTextActive
-                  ]}>{cat}</Text>
-                  {category === cat && <Check size={14} color="#fff" style={styles.checkIcon} />}
-                </TouchableOpacity>
-              ))}
-            </View>
+            {type === 'expense' && (
+              <>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.label}>Select Category</Text>
+                </View>
+                <View style={styles.categoryGrid}>
+                  {CATEGORIES.map((cat) => (
+                    <TouchableOpacity
+                      key={cat}
+                      style={[
+                        styles.categoryItem,
+                        category === cat && styles.categoryItemActive
+                      ]}
+                      onPress={() => setCategory(cat)}
+                    >
+                      <Text style={[
+                        styles.categoryText,
+                        category === cat && styles.categoryTextActive
+                      ]}>{cat}</Text>
+                      {category === cat && <Check size={14} color="#fff" style={styles.checkIcon} />}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </>
+            )}
 
             {/* Description Input */}
             <View style={styles.sectionHeader}>
-              <Text style={styles.label}>Description</Text>
+              <Text style={styles.label}>Description {type === 'income' && '(Optional)'}</Text>
             </View>
             <GlassCard style={styles.descriptionCard}>
               <TextInput
                 style={styles.textInput}
-                placeholder="Ex. Monthly Rent, Grocery Shopping..."
+                placeholder={type === 'income' ? "Ex. Salary, Bonus, Freelance..." : "Ex. Monthly Rent, Grocery Shopping..."}
                 placeholderTextColor={theme.colors.textLight}
                 value={description}
                 onChangeText={setDescription}
@@ -209,6 +260,21 @@ export default function AddTransaction({ userId, onClose }) {
                 <Text style={styles.submitButtonText}>Confirm Transaction</Text>
               </LinearGradient>
             </TouchableOpacity>
+
+            {showSuccessAnim && (
+              <Animated.View style={[
+                styles.successOverlay,
+                { opacity: successFadeAnim, transform: [{ translateY: successSlideAnim }] }
+              ]}>
+                <Text style={[
+                  styles.successText,
+                  { color: type === 'income' ? theme.colors.income : theme.colors.expense }
+                ]}>
+                  {type === 'income' ? '+' : '-'} Rs {parseFloat(amount).toLocaleString()}
+                </Text>
+                <Check size={48} color={type === 'income' ? theme.colors.income : theme.colors.expense} />
+              </Animated.View>
+            )}
           </Animated.ScrollView>
         </SafeAreaView>
       </Animated.View>
@@ -293,16 +359,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   currencySymbol: {
-    fontSize: 40,
-    fontWeight: '800',
-    color: theme.colors.text,
-    marginRight: 8,
+    fontSize: 28,
+    fontWeight: '700',
+    color: theme.colors.textLight,
+    marginRight: 10,
+    marginTop: 8,
   },
   amountInput: {
-    fontSize: 52,
+    fontSize: 48,
     fontWeight: '900',
-    minWidth: 150,
-    textAlign: 'center',
+    flex: 1,
+    paddingVertical: theme.spacing.md,
+    minHeight: 70,
   },
   categoryGrid: {
     flexDirection: 'row',
@@ -361,5 +429,22 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  successOverlay: {
+    position: 'absolute',
+    top: '40%',
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 100,
+  },
+  successText: {
+    fontSize: 32,
+    fontWeight: '900',
+    marginBottom: 10,
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
 });

@@ -10,6 +10,8 @@ import {
   StatusBar,
   Animated,
   Dimensions,
+  Alert,
+  BackHandler,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
@@ -42,6 +44,7 @@ export default function Dashboard({ user, onLogout }) {
   const scrollY = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
+
   const fetchData = useCallback(async () => {
     try {
       const data = await getTransactions(user.id);
@@ -70,6 +73,17 @@ export default function Dashboard({ user, onLogout }) {
       duration: 1000,
       useNativeDriver: true,
     }).start();
+
+    const backAction = () => {
+      Alert.alert('Exit App', 'Are you sure you want to exit tracking?', [
+        { text: 'Cancel', onPress: () => null, style: 'cancel' },
+        { text: 'YES', onPress: () => BackHandler.exitApp() },
+      ]);
+      return true;
+    };
+
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
+    return () => backHandler.remove();
   }, [fetchData]);
 
   const onRefresh = async () => {
@@ -104,11 +118,14 @@ export default function Dashboard({ user, onLogout }) {
 
       <Animated.View style={[styles.header, { opacity: headerOpacity }]}>
         <View>
-          <Text style={styles.greeting}>Good Morning,</Text>
+          <Text style={styles.greeting}>Welcome,</Text>
           <Text style={styles.userName}>{user.name}</Text>
         </View>
         <View style={styles.headerActions}>
-          <TouchableOpacity style={styles.iconButton}>
+          <TouchableOpacity
+            style={styles.iconButton}
+            onPress={() => Alert.alert('Notifications', 'No new notifications at the moment.')}
+          >
             <Bell size={22} color={theme.colors.text} />
           </TouchableOpacity>
           <TouchableOpacity onPress={onLogout} style={styles.iconButton}>
@@ -138,7 +155,13 @@ export default function Dashboard({ user, onLogout }) {
             <View style={styles.balanceHeader}>
               <View style={styles.balanceInfo}>
                 <Text style={styles.balanceTitle}>Total Balance</Text>
-                <Text style={styles.balanceAmount}>${totals.balance.toLocaleString()}</Text>
+                <Text
+                  style={[styles.balanceAmount, { flex: 1 }]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                >
+                  Rs {totals.balance.toLocaleString()}
+                </Text>
               </View>
               <View style={styles.walletIcon}>
                 <Wallet size={24} color="#fff" />
@@ -150,18 +173,26 @@ export default function Dashboard({ user, onLogout }) {
                 <View style={styles.statIconWrapper}>
                   <ArrowUpCircle size={20} color={theme.colors.income} />
                 </View>
-                <View>
-                  <Text style={styles.statLabel}>Income</Text>
-                  <Text style={styles.statValue}>+${totals.income.toLocaleString()}</Text>
+                <View style={{ flex: 1, marginLeft: 8 }}>
+                  <Text style={styles.statLabel} numberOfLines={1}>Income</Text>
+                  <Text
+                    style={styles.statValue}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                  >+Rs {totals.income.toLocaleString()}</Text>
                 </View>
               </View>
               <View style={styles.statItem}>
                 <View style={[styles.statIconWrapper, { backgroundColor: 'rgba(255,255,255,0.1)' }]}>
                   <ArrowDownCircle size={20} color={theme.colors.expense} />
                 </View>
-                <View>
-                  <Text style={styles.statLabel}>Expenses</Text>
-                  <Text style={styles.statValue}>-${totals.expense.toLocaleString()}</Text>
+                <View style={{ flex: 1, marginLeft: 8 }}>
+                  <Text style={styles.statLabel} numberOfLines={1}>Expenses</Text>
+                  <Text
+                    style={styles.statValue}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                  >-Rs {totals.expense.toLocaleString()}</Text>
                 </View>
               </View>
             </View>
@@ -175,8 +206,8 @@ export default function Dashboard({ user, onLogout }) {
           {[
             { id: '1', icon: <Plus size={24} color="#fff" />, label: 'Add', color: theme.colors.primary, onPress: () => setShowAddModal(true) },
             { id: '2', icon: <PieChart size={24} color="#fff" />, label: 'Stats', color: theme.colors.accent, onPress: () => setShowReport(true) },
-            { id: '3', icon: <Calendar size={24} color="#fff" />, label: 'Plans', color: theme.colors.secondary },
-            { id: '4', icon: <Settings size={24} color="#fff" />, label: 'Config', color: '#64748b' },
+            { id: '3', icon: <Calendar size={24} color="#fff" />, label: 'Plans', color: theme.colors.secondary, onPress: () => Alert.alert('Coming Soon', 'Personalized financial plans are under development!') },
+            { id: '4', icon: <Settings size={24} color="#fff" />, label: 'Config', color: '#64748b', onPress: () => Alert.alert('Settings', 'App configuration settings will be available in the next update.') },
           ].map((action) => (
             <TouchableOpacity key={action.id} style={styles.actionItem} onPress={action.onPress}>
               <LinearGradient colors={[action.color, action.color + 'dd']} style={styles.actionIcon}>
@@ -217,11 +248,15 @@ export default function Dashboard({ user, onLogout }) {
                   <Text style={styles.transactionDate}>{t.date}</Text>
                 </View>
                 <View style={styles.amountContainer}>
-                  <Text style={[
-                    styles.transactionAmount,
-                    { color: t.type === 'income' ? theme.colors.income : theme.colors.expense }
-                  ]}>
-                    {t.type === 'income' ? '+' : '-'}${t.amount.toLocaleString()}
+                  <Text
+                    style={[
+                      styles.transactionAmount,
+                      { color: t.type === 'income' ? theme.colors.income : theme.colors.expense }
+                    ]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                  >
+                    {t.type === 'income' ? '+' : '-'}Rs {t.amount.toLocaleString()}
                   </Text>
                 </View>
               </GlassCard>
@@ -320,14 +355,15 @@ const styles = StyleSheet.create({
   },
   balanceAmount: {
     color: '#fff',
-    fontSize: 38,
+    fontSize: 32,
     fontWeight: '800',
     marginTop: 4,
+    minHeight: 40,
   },
   walletIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
+    width: 42,
+    height: 42,
+    borderRadius: 14,
     backgroundColor: 'rgba(255,255,255,0.2)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -343,6 +379,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
+    paddingHorizontal: 4,
   },
   statIconWrapper: {
     width: 36,
@@ -360,8 +397,9 @@ const styles = StyleSheet.create({
   },
   statValue: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 12,
     fontWeight: '700',
+    flexShrink: 1,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -409,13 +447,15 @@ const styles = StyleSheet.create({
   transactionCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: theme.spacing.md,
-    marginBottom: theme.spacing.sm,
+    paddingVertical: 10,
+    paddingHorizontal: theme.spacing.md,
+    marginBottom: 8,
+    minHeight: 56,
   },
   transactionIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: theme.spacing.md,
@@ -424,21 +464,22 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   transactionCategory: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '700',
     color: theme.colors.text,
   },
   transactionDate: {
-    fontSize: 13,
+    fontSize: 11,
     color: theme.colors.textLight,
-    marginTop: 2,
   },
   amountContainer: {
     alignItems: 'flex-end',
   },
   transactionAmount: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '800',
+    flexShrink: 1,
+    textAlign: 'right',
   },
   emptyState: {
     alignItems: 'center',

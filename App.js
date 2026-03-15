@@ -5,33 +5,54 @@ import { StatusBar } from 'expo-status-bar';
 import Login from './src/components/Login';
 import Signup from './src/components/Signup';
 import Dashboard from './src/components/Dashboard';
+import Onboarding from './src/components/Onboarding';
+import SplashScreen from './src/components/SplashScreen';
 import { initDatabase } from './src/database/db';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState('login'); // login, signup, dashboard
   const [currentUser, setCurrentUser] = useState(null);
   const [dbInitialized, setDbInitialized] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const setupDatabase = async () => {
       try {
         await initDatabase();
-        setDbInitialized(true);
+        // Artificial delay for splash screen visibility
+        setTimeout(() => {
+          setDbInitialized(true);
+          setIsLoading(false);
+        }, 2500);
       } catch (error) {
         console.error('Failed to initialize database:', error);
+        setDbInitialized(true);
+        setIsLoading(false);
       }
     };
     setupDatabase();
   }, []);
 
-  const handleLogin = (user) => {
+  const handleLogin = async (user) => {
     setCurrentUser(user);
-    setCurrentScreen('dashboard');
+    try {
+      const hasSeenOnboarding = await AsyncStorage.getItem('hasSeenOnboarding');
+      if (!hasSeenOnboarding) {
+        setCurrentScreen('onboarding');
+      } else {
+        setCurrentScreen('dashboard');
+      }
+    } catch (e) {
+      console.warn('AsyncStorage error:', e);
+      setCurrentScreen('dashboard');
+    }
   };
 
-  const handleSignup = (user) => {
+  const handleSignup = async (user) => {
     setCurrentUser(user);
-    setCurrentScreen('dashboard');
+    // New users always see onboarding
+    setCurrentScreen('onboarding');
   };
 
   const handleLogout = () => {
@@ -39,13 +60,17 @@ export default function App() {
     setCurrentScreen('login');
   };
 
-  if (!dbInitialized) {
-    return (
-      <View style={[styles.container, styles.centerContent]}>
-        <ActivityIndicator size="large" color="#6366f1" />
-        <StatusBar style="auto" />
-      </View>
-    );
+  const handleCompleteOnboarding = async () => {
+    try {
+      await AsyncStorage.setItem('hasSeenOnboarding', 'true');
+    } catch (e) {
+      console.warn('Failed to save onboarding state:', e);
+    }
+    setCurrentScreen('dashboard');
+  };
+
+  if (isLoading) {
+    return <SplashScreen />;
   }
 
   return (
@@ -65,6 +90,10 @@ export default function App() {
         />
       )}
 
+      {currentScreen === 'onboarding' && (
+        <Onboarding onComplete={handleCompleteOnboarding} />
+      )}
+
       {currentScreen === 'dashboard' && (
         <Dashboard
           user={currentUser}
@@ -78,7 +107,7 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#0f172a', // theme.colors.background
   },
   centerContent: {
     justifyContent: 'center',

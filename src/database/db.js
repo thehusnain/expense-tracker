@@ -1,17 +1,18 @@
 import * as SQLite from 'expo-sqlite';
 
-// Use the synchronous version for simplicity in initialization, 
-// but we'll use async methods for operations.
-let db;
+let db = null;
 
 export const initDatabase = async () => {
+  if (db) return db;
+
   try {
     db = await SQLite.openDatabaseAsync('expense_tracker.db');
 
+    // Enable foreign keys
+    await db.execAsync('PRAGMA foreign_keys = ON;');
+
     // Create tables
     await db.execAsync(`
-      PRAGMA foreign_keys = ON;
-      
       CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
@@ -45,22 +46,34 @@ export const initDatabase = async () => {
     `);
 
     console.log('Database initialized successfully');
-    return true;
+    return db;
   } catch (error) {
     console.error('Error initializing database:', error);
+    db = null;
     throw error;
   }
 };
 
+const ensureDb = async () => {
+  if (!db) {
+    await initDatabase();
+  }
+  if (!db) {
+    throw new Error('Database not initialized');
+  }
+  return db;
+};
+
 // User functions
 export const createUser = async (name, email, password) => {
+  const database = await ensureDb();
   try {
-    const result = await db.runAsync(
+    const result = await database.runAsync(
       'INSERT INTO users (name, email, password) VALUES (?, ?, ?);',
       [name, email, password]
     );
 
-    const user = await db.getFirstAsync('SELECT * FROM users WHERE id = ?;', [result.lastInsertRowId]);
+    const user = await database.getFirstAsync('SELECT * FROM users WHERE id = ?;', [result.lastInsertRowId]);
     return user;
   } catch (error) {
     console.error('Error creating user:', error);
@@ -69,8 +82,9 @@ export const createUser = async (name, email, password) => {
 };
 
 export const loginUser = async (email, password) => {
+  const database = await ensureDb();
   try {
-    const user = await db.getFirstAsync(
+    const user = await database.getFirstAsync(
       'SELECT * FROM users WHERE email = ? AND password = ?;',
       [email, password]
     );
@@ -88,8 +102,9 @@ export const loginUser = async (email, password) => {
 
 // Transaction functions
 export const addTransaction = async (userId, amount, category, type, description, date, time) => {
+  const database = await ensureDb();
   try {
-    const result = await db.runAsync(
+    const result = await database.runAsync(
       'INSERT INTO transactions (user_id, amount, category, type, description, date, time) VALUES (?, ?, ?, ?, ?, ?, ?);',
       [userId, amount, category, type, description, date, time]
     );
@@ -101,8 +116,9 @@ export const addTransaction = async (userId, amount, category, type, description
 };
 
 export const getTransactions = async (userId) => {
+  const database = await ensureDb();
   try {
-    const rows = await db.getAllAsync(
+    const rows = await database.getAllAsync(
       'SELECT * FROM transactions WHERE user_id = ? ORDER BY date DESC, time DESC;',
       [userId]
     );
@@ -114,8 +130,9 @@ export const getTransactions = async (userId) => {
 };
 
 export const deleteTransaction = async (transactionId) => {
+  const database = await ensureDb();
   try {
-    const result = await db.runAsync('DELETE FROM transactions WHERE id = ?;', [transactionId]);
+    const result = await database.runAsync('DELETE FROM transactions WHERE id = ?;', [transactionId]);
     return result;
   } catch (error) {
     console.error('Error deleting transaction:', error);
@@ -123,10 +140,22 @@ export const deleteTransaction = async (transactionId) => {
   }
 };
 
+export const getTransactionCount = async (userId) => {
+  const database = await ensureDb();
+  try {
+    const result = await database.getFirstAsync('SELECT COUNT(*) as count FROM transactions WHERE user_id = ?;', [userId]);
+    return result.count;
+  } catch (error) {
+    console.error('Error counting transactions:', error);
+    return 0;
+  }
+};
+
 // Card functions
 export const addCard = async (userId, cardNumber, cardHolder, cardType, expiryDate) => {
+  const database = await ensureDb();
   try {
-    const result = await db.runAsync(
+    const result = await database.runAsync(
       'INSERT INTO cards (user_id, card_number, card_holder, card_type, expiry_date) VALUES (?, ?, ?, ?, ?);',
       [userId, cardNumber, cardHolder, cardType, expiryDate]
     );
@@ -138,8 +167,9 @@ export const addCard = async (userId, cardNumber, cardHolder, cardType, expiryDa
 };
 
 export const getCards = async (userId) => {
+  const database = await ensureDb();
   try {
-    const rows = await db.getAllAsync('SELECT * FROM cards WHERE user_id = ?;', [userId]);
+    const rows = await database.getAllAsync('SELECT * FROM cards WHERE user_id = ?;', [userId]);
     return rows;
   } catch (error) {
     console.error('Error fetching cards:', error);

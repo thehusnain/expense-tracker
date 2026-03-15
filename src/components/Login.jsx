@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,8 +8,9 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
-  Dimensions,
+  ScrollView,
   Animated,
+  Dimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Mail, Lock, LogIn } from 'lucide-react-native';
@@ -24,8 +25,8 @@ export default function Login({ onLogin, onNavigateToSignup }) {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const fadeAnim = new Animated.Value(0);
-  const slideAnim = new Animated.Value(30);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
 
   useEffect(() => {
     Animated.parallel([
@@ -69,76 +70,81 @@ export default function Login({ onLogin, onNavigateToSignup }) {
         style={styles.background}
       />
 
-      <Animated.View style={[styles.content, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
-        <View style={styles.header}>
-          <View style={styles.logoContainer}>
-            <LinearGradient
-              colors={[theme.colors.primary, theme.colors.accent]}
-              style={styles.logoGradient}
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
+        <Animated.View style={[styles.content, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+          <View style={styles.header}>
+            <View style={styles.logoContainer}>
+              <LinearGradient
+                colors={[theme.colors.primary, theme.colors.accent]}
+                style={styles.logoGradient}
+              >
+                <LogIn size={32} color="#fff" />
+              </LinearGradient>
+            </View>
+            <Text style={styles.title}>Welcome Back</Text>
+            <Text style={styles.subtitle}>Sign in to continue tracking your expenses</Text>
+          </View>
+
+          <GlassCard style={styles.formCard}>
+            <View style={styles.inputWrapper}>
+              <Mail size={20} color={theme.colors.textLight} style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Email Address"
+                placeholderTextColor={theme.colors.textLight}
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+            </View>
+
+            <View style={styles.inputWrapper}>
+              <Lock size={20} color={theme.colors.textLight} style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Password"
+                placeholderTextColor={theme.colors.textLight}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+              />
+            </View>
+
+            <TouchableOpacity
+              style={styles.loginButton}
+              onPress={handleLogin}
+              disabled={loading}
             >
-              <LogIn size={32} color="#fff" />
-            </LinearGradient>
-          </View>
-          <Text style={styles.title}>Welcome Back</Text>
-          <Text style={styles.subtitle}>Sign in to continue tracking your expenses</Text>
-        </View>
-
-        <GlassCard style={styles.formCard}>
-          <View style={styles.inputWrapper}>
-            <Mail size={20} color={theme.colors.textLight} style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Email Address"
-              placeholderTextColor={theme.colors.textLight}
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-          </View>
-
-          <View style={styles.inputWrapper}>
-            <Lock size={20} color={theme.colors.textLight} style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Password"
-              placeholderTextColor={theme.colors.textLight}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-            />
-          </View>
-
-          <TouchableOpacity
-            style={styles.loginButton}
-            onPress={handleLogin}
-            disabled={loading}
-          >
-            <LinearGradient
-              colors={[theme.colors.primary, theme.colors.primaryDark]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.gradientButton}
-            >
-              {loading ? (
-                <Text style={styles.buttonText}>Signing in...</Text>
-              ) : (
-                <>
-                  <Text style={styles.buttonText}>Sign In</Text>
-                  <LogIn size={20} color="#fff" />
-                </>
-              )}
-            </LinearGradient>
-          </TouchableOpacity>
-
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>Don't have an account? </Text>
-            <TouchableOpacity onPress={onNavigateToSignup}>
-              <Text style={styles.footerLink}>Sign Up</Text>
+              <LinearGradient
+                colors={[theme.colors.primary, theme.colors.primaryDark]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.gradientButton}
+              >
+                {loading ? (
+                  <Text style={styles.buttonText}>Signing in...</Text>
+                ) : (
+                  <>
+                    <Text style={styles.buttonText}>Sign In</Text>
+                    <LogIn size={20} color="#fff" />
+                  </>
+                )}
+              </LinearGradient>
             </TouchableOpacity>
-          </View>
-        </GlassCard>
-      </Animated.View>
+
+            <View style={styles.footer}>
+              <Text style={styles.footerText}>Don't have an account? </Text>
+              <TouchableOpacity onPress={onNavigateToSignup}>
+                <Text style={styles.footerLink}>Sign Up</Text>
+              </TouchableOpacity>
+            </View>
+          </GlassCard>
+        </Animated.View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
@@ -151,10 +157,14 @@ const styles = StyleSheet.create({
   background: {
     ...StyleSheet.absoluteFillObject,
   },
-  content: {
-    flex: 1,
+  scrollContent: {
+    flexGrow: 1,
     justifyContent: 'center',
     paddingHorizontal: theme.spacing.xl,
+    paddingVertical: theme.spacing.xxl,
+  },
+  content: {
+    width: '100%',
   },
   header: {
     alignItems: 'center',

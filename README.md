@@ -19,7 +19,7 @@ A high-end, visually stunning expense tracking mobile application built with Rea
 - **Framework**: [React Native](https://reactnative.dev/) with [Expo](https://expo.dev/) (SDK 55).
 - **Icons**: [Lucide React Native](https://lucide.dev/guide/packages/lucide-react-native) for consistent, high-quality iconography.
 - **Styling**: Vanilla StyleSheet with a custom Theme engine for consistent dark-mode aesthetics.
-- **Animations**: React Native `Animated` API for performant, native-quality transitions.
+- **Animations**: React Native `Animated` API and `react-native-reanimated` (v4) with `react-native-worklets` for high-performance transitions.
 - **Gradients**: `expo-linear-gradient` for premium visual depth.
 - **Storage**: `expo-sqlite` for secure, offline-first data persistence.
 
