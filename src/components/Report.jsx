@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   TouchableOpacity,
   ScrollView,
   Dimensions,
@@ -11,7 +10,9 @@ import {
   StatusBar,
   Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, Filter, Download, ArrowUpCircle, ArrowDownCircle, TrendingUp, FileText } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { getTransactions } from '../database/db';
@@ -28,16 +29,21 @@ export default function Report({ user, onBack }) {
 
   useEffect(() => {
     const fetchTransactions = async () => {
-      const transactions = await getTransactions(user.id);
-      setData(transactions);
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 800,
-        useNativeDriver: true,
-      }).start();
+      if (!user || !user.id) return;
+      try {
+        const transactions = await getTransactions(user.id);
+        setData(transactions);
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 800,
+          useNativeDriver: true,
+        }).start();
+      } catch (error) {
+        console.error('Error fetching transactions in Report:', error);
+      }
     };
     fetchTransactions();
-  }, [user.id]);
+  }, [user]);
 
   const filteredData = data.filter(t => {
     if (activeTab === 'all') return true;
@@ -71,7 +77,7 @@ export default function Report({ user, onBack }) {
               <div class="title">Premium Expense Report</div>
               <div style="text-align: right">
                 <small>${new Date().toLocaleDateString()}</small><br/>
-                <strong>User: ${user.name}</strong>
+                <strong>User: ${user?.name || 'Valued User'}</strong>
               </div>
             </div>
             
@@ -206,8 +212,8 @@ export default function Report({ user, onBack }) {
                       <ArrowDownCircle size={22} color={theme.colors.expense} />
                     )}
                   </View>
-                  <View>
-                    <Text style={styles.itemCategory}>{t.category}</Text>
+                  <View style={{ flex: 1, paddingRight: 8 }}>
+                    <Text style={styles.itemCategory} numberOfLines={1}>{t.category}</Text>
                     <Text style={styles.itemDate}>{t.date} • {t.time}</Text>
                   </View>
                 </View>
@@ -363,14 +369,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: theme.spacing.sm,
+    paddingVertical: theme.spacing.md,
     paddingHorizontal: theme.spacing.md,
-    marginBottom: 8,
-    height: 60,
+    marginBottom: 10,
+    minHeight: 75,
   },
   itemMain: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
   },
   iconWrapper: {
     width: 36,
@@ -392,6 +399,8 @@ const styles = StyleSheet.create({
   },
   itemRight: {
     alignItems: 'flex-end',
+    minWidth: 90,
+    marginLeft: 10,
   },
   itemAmount: {
     fontSize: 15,

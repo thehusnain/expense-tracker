@@ -61,7 +61,11 @@ export default function Signup({ onSignup, onNavigateToLogin }) {
       const user = await createUser(name, email, password);
       onSignup(user);
     } catch (error) {
-      Alert.alert('Signup Failed', error.message || 'An error occurred during signup');
+      if (error.message && error.message.includes('UNIQUE constraint failed: users.email')) {
+        Alert.alert('Signup Error', 'This email address is already registered. Please use a different email or log in.');
+      } else {
+        Alert.alert('Signup Failed', error.message || 'An error occurred during signup');
+      }
     } finally {
       setLoading(false);
     }

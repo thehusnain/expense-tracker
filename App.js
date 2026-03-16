@@ -9,6 +9,7 @@ import Onboarding from './src/components/Onboarding';
 import SplashScreen from './src/components/SplashScreen';
 import { initDatabase } from './src/database/db';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState('login'); // login, signup, dashboard
@@ -20,13 +21,28 @@ export default function App() {
     const setupDatabase = async () => {
       try {
         await initDatabase();
-        // Artificial delay for splash screen visibility
+
+        // Check for persistent login
+        const savedUser = await AsyncStorage.getItem('currentUser');
+        if (savedUser) {
+          const user = JSON.parse(savedUser);
+          setCurrentUser(user);
+
+          const hasSeenOnboarding = await AsyncStorage.getItem('hasSeenOnboarding');
+          if (hasSeenOnboarding) {
+            setCurrentScreen('dashboard');
+          } else {
+            setCurrentScreen('onboarding');
+          }
+        }
+
+        // Artificial delay for splash screen visibility and smooth transition
         setTimeout(() => {
           setDbInitialized(true);
           setIsLoading(false);
-        }, 2500);
+        }, 2000);
       } catch (error) {
-        console.error('Failed to initialize database:', error);
+        console.error('Failed to initialize database or check auth:', error);
         setDbInitialized(true);
         setIsLoading(false);
       }
@@ -37,6 +53,7 @@ export default function App() {
   const handleLogin = async (user) => {
     setCurrentUser(user);
     try {
+      await AsyncStorage.setItem('currentUser', JSON.stringify(user));
       const hasSeenOnboarding = await AsyncStorage.getItem('hasSeenOnboarding');
       if (!hasSeenOnboarding) {
         setCurrentScreen('onboarding');
@@ -51,13 +68,23 @@ export default function App() {
 
   const handleSignup = async (user) => {
     setCurrentUser(user);
+    try {
+      await AsyncStorage.setItem('currentUser', JSON.stringify(user));
+    } catch (e) {
+      console.warn('AsyncStorage error saving signup:', e);
+    }
     // New users always see onboarding
     setCurrentScreen('onboarding');
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     setCurrentUser(null);
     setCurrentScreen('login');
+    try {
+      await AsyncStorage.removeItem('currentUser');
+    } catch (e) {
+      console.warn('Failed to clear user storage:', e);
+    }
   };
 
   const handleCompleteOnboarding = async () => {
@@ -74,33 +101,35 @@ export default function App() {
   }
 
   return (
-    <View style={styles.container}>
-      <StatusBar style="auto" />
-      {currentScreen === 'login' && (
-        <Login
-          onLogin={handleLogin}
-          onNavigateToSignup={() => setCurrentScreen('signup')}
-        />
-      )}
+    <SafeAreaProvider>
+      <View style={styles.container}>
+        <StatusBar style="auto" />
+        {currentScreen === 'login' && (
+          <Login
+            onLogin={handleLogin}
+            onNavigateToSignup={() => setCurrentScreen('signup')}
+          />
+        )}
 
-      {currentScreen === 'signup' && (
-        <Signup
-          onSignup={handleSignup}
-          onNavigateToLogin={() => setCurrentScreen('login')}
-        />
-      )}
+        {currentScreen === 'signup' && (
+          <Signup
+            onSignup={handleSignup}
+            onNavigateToLogin={() => setCurrentScreen('login')}
+          />
+        )}
 
-      {currentScreen === 'onboarding' && (
-        <Onboarding onComplete={handleCompleteOnboarding} />
-      )}
+        {currentScreen === 'onboarding' && (
+          <Onboarding onComplete={handleCompleteOnboarding} />
+        )}
 
-      {currentScreen === 'dashboard' && (
-        <Dashboard
-          user={currentUser}
-          onLogout={handleLogout}
-        />
-      )}
-    </View>
+        {currentScreen === 'dashboard' && (
+          <Dashboard
+            user={currentUser}
+            onLogout={handleLogout}
+          />
+        )}
+      </View>
+    </SafeAreaProvider>
   );
 }
 

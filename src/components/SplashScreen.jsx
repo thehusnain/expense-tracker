@@ -22,17 +22,18 @@ export default function SplashScreen() {
         Animated.parallel([
             Animated.timing(fadeAnim, {
                 toValue: 1,
-                duration: 1000,
+                duration: 1200,
                 useNativeDriver: true,
             }),
             Animated.spring(scaleAnim, {
                 toValue: 1,
-                friction: 4,
+                friction: 6,
+                tension: 40,
                 useNativeDriver: true,
             }),
             Animated.timing(progressAnim, {
                 toValue: 1,
-                duration: 2000,
+                duration: 1800,
                 useNativeDriver: false,
             }),
         ]).start();

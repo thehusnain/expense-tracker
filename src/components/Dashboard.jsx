@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  SafeAreaView,
   RefreshControl,
   StatusBar,
   Animated,
@@ -13,6 +12,7 @@ import {
   Alert,
   BackHandler,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
   Plus,
@@ -46,6 +46,7 @@ export default function Dashboard({ user, onLogout }) {
 
 
   const fetchData = useCallback(async () => {
+    if (!user || !user.id) return;
     try {
       const data = await getTransactions(user.id);
       setTransactions(data);
@@ -64,7 +65,7 @@ export default function Dashboard({ user, onLogout }) {
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     }
-  }, [user.id]);
+  }, [user]);
 
   useEffect(() => {
     fetchData();
@@ -119,7 +120,7 @@ export default function Dashboard({ user, onLogout }) {
       <Animated.View style={[styles.header, { opacity: headerOpacity }]}>
         <View>
           <Text style={styles.greeting}>Welcome,</Text>
-          <Text style={styles.userName}>{user.name}</Text>
+          <Text style={styles.userName}>{user?.name || 'User'}</Text>
         </View>
         <View style={styles.headerActions}>
           <TouchableOpacity

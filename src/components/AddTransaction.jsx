@@ -6,12 +6,12 @@ import {
   TouchableOpacity,
   TextInput,
   Modal,
-  SafeAreaView,
   ScrollView,
   Alert,
   Animated,
   Dimensions,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { X, ChevronDown, Calendar, CreditCard, Tag, DollarSign, Check, ArrowUpCircle, ArrowDownCircle } from 'lucide-react-native';
 import { addTransaction, getTransactionCount } from '../database/db';
@@ -191,19 +191,24 @@ export default function AddTransaction({ userId, onClose }) {
             <GlassCard style={styles.amountCard}>
               <Text style={styles.amountLabel}>Total Amount</Text>
               <View style={styles.amountInputRow}>
-                <Text style={styles.currencySymbol}>Rs</Text>
                 <TextInput
                   style={[
                     styles.amountInput,
                     { color: type === 'income' ? theme.colors.income : theme.colors.expense }
                   ]}
-                  keyboardType="numeric"
-                  placeholder="0"
+                  keyboardType="decimal-pad"
+                  placeholder="0.00"
                   placeholderTextColor="rgba(255,255,255,0.1)"
-                  maxLength={10}
+                  maxLength={12}
                   value={amount}
-                  onChangeText={setAmount}
-                  adjustsFontSizeToFit
+                  onChangeText={(val) => {
+                    // Only allow numbers and one decimal point
+                    const cleanValue = val.replace(/[^0-9.]/g, '');
+                    if (cleanValue.split('.').length <= 2) {
+                      setAmount(cleanValue);
+                    }
+                  }}
+                  textAlign="center"
                 />
               </View>
             </GlassCard>
@@ -366,11 +371,11 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   amountInput: {
-    fontSize: 48,
+    fontSize: 54,
     fontWeight: '900',
-    flex: 1,
+    width: '100%',
     paddingVertical: theme.spacing.md,
-    minHeight: 70,
+    minHeight: 80,
   },
   categoryGrid: {
     flexDirection: 'row',
